@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>우리 가족 미션 보드</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Pretendard', sans-serif;
+    background: #F6F4EF; color: #2a2a2a;
+  }
+  #app { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
+  @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+  button { font-family: inherit; cursor: pointer; border: none; }
+  input { font-family: inherit; }
+
+  .loading { display:flex; align-items:center; justify-content:center; min-height:100vh; color:#999; animation:pulse 1.4s ease-in-out infinite; }
+
+  header { text-align:center; margin-bottom:20px; }
+  .month-tag { display:inline-block; background:#2a2a2a; color:#fff; font-size:12px; font-weight:700; padding:4px 12px; border-radius:999px; letter-spacing:.04em; }
+  h1 { font-size:26px; font-weight:900; margin:12px 0 4px; letter-spacing:-.02em; }
+  .sub { font-size:13px; color:#8a8a8a; }
+  .sync { font-size:11px; color:#bbb; margin-top:6px; }
+
+  .summary-row { display:flex; gap:12px; margin-bottom:20px; }
+  .summary-card { flex:1; background:#fff; border:2px solid transparent; border-radius:18px; padding:16px 10px; text-align:center; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .avatar { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 8px; }
+  .summary-name { font-weight:800; font-size:16px; }
+  .level-badge { font-size:13px; font-weight:800; margin-top:2px; }
+  .summary-count { font-size:12px; color:#999; margin-top:2px; }
+
+  .detail-card { background:#fff; border-radius:22px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,.05); }
+  .detail-head { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .avatar-lg { width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:30px; }
+  .detail-name { font-size:20px; font-weight:900; }
+  .detail-level { font-size:13px; margin-top:2px; }
+  .next-hint { color:#aaa; }
+  .big-num { font-size:34px; font-weight:900; line-height:1; }
+  .big-num-label { font-size:11px; color:#aaa; font-weight:600; }
+
+  .level-track { display:flex; justify-content:space-between; padding:8px 4px 18px; border-bottom:1px solid #f0f0f0; margin-bottom:16px; }
+  .level-step { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .level-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; transition:all .2s; background:#e3e3e3; color:#aaa; }
+  .level-step-label { font-size:11px; color:#bbb; font-weight:500; }
+
+  .reward-head { font-size:14px; font-weight:800; margin-bottom:8px; }
+  .reward-row { display:flex; align-items:center; gap:12px; border:1.5px solid #f0f0f0; border-radius:12px; padding:9px 12px; margin-bottom:8px; background:#fafafa; }
+  .reward-lvl { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0; background:#e3e3e3; color:#999; }
+  .reward-stage { font-size:11px; font-weight:700; color:#aaa; }
+  .reward-name { font-size:14px; font-weight:700; line-height:1.3; color:#999; }
+  .reward-chip { color:#fff; font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px; flex-shrink:0; }
+  .reward-lock { font-size:11px; font-weight:700; color:#C99A2E; flex-shrink:0; }
+  .reward-lock-gray { font-size:13px; opacity:.4; flex-shrink:0; }
+
+  .penalty-note { background:#FFEAEA; color:#c0392b; font-size:13px; font-weight:700; padding:8px 12px; border-radius:12px; margin:14px 0; }
+
+  .mission-row { border:1.5px solid #eee; border-radius:14px; padding:12px 14px; margin-bottom:10px; background:#fff; transition:all .15s; }
+  .mission-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:10px; }
+  .mission-label { font-size:14.5px; font-weight:600; line-height:1.35; }
+  .tag { font-size:10px; font-weight:700; background:#eee; color:#777; padding:2px 6px; border-radius:6px; margin-left:6px; white-space:nowrap; }
+  .done-chip { color:#fff; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .mission-bottom { display:flex; align-items:center; gap:12px; }
+  .bar-outer { flex:1; height:8px; background:#f0f0f0; border-radius:999px; overflow:hidden; }
+  .bar-inner { height:100%; border-radius:999px; transition:width .3s ease; }
+  .count-wrap { display:flex; align-items:center; gap:8px; }
+  .step-btn { width:34px; height:34px; border-radius:10px; background:#f0f0f0; color:#555; font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .step-btn.plus { color:#fff; }
+  .count-text { min-width:44px; text-align:center; font-weight:800; font-size:15px; }
+  .count-target { color:#bbb; font-weight:600; font-size:13px; }
+
+  .parent-toggle { width:100%; border:1.5px solid #ddd; background:#fff; color:#666; border-radius:14px; padding:12px; font-weight:700; font-size:14px; margin-top:18px; transition:all .2s; }
+  .parent-toggle.on { background:#333; color:#fff; }
+
+  .pw-panel, .parent-panel { margin-top:12px; background:#fff; border-radius:16px; padding:18px; box-shadow:0 4px 16px rgba(0,0,0,.05); }
+  .pw-panel { text-align:center; }
+  .pw-title, .parent-title { font-weight:800; font-size:14px; margin-bottom:12px; }
+  .pw-input { width:100%; border:1.5px solid #ddd; border-radius:12px; padding:12px 14px; font-size:18px; text-align:center; letter-spacing:.3em; outline:none; }
+  .pw-input.err { border-color:#d33; }
+  .pw-error { color:#d33; font-size:12px; font-weight:700; margin-top:8px; }
+  .pw-btn-row { display:flex; gap:10px; margin-top:14px; }
+  .pw-cancel { flex:1; border:1.5px solid #ddd; background:#fff; color:#777; border-radius:12px; padding:11px; font-weight:700; font-size:14px; }
+  .pw-submit { flex:1; background:#333; color:#fff; border-radius:12px; padding:11px; font-weight:700; font-size:14px; }
+  .parent-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f4f4f4; }
+  .reset-btn { width:100%; margin-top:12px; background:#f4f4f4; color:#999; border-radius:12px; padding:10px; font-weight:700; font-size:13px; }
+
+  .footer { text-align:center; font-size:11.5px; color:#aaa; margin-top:24px; line-height:1.6; }
+  .config-warn { background:#FFF3CD; color:#856404; border:1px solid #FFE08A; border-radius:12px; padding:14px; font-size:13px; line-height:1.6; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">불러오는 중…</div></div>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   ① 여기에 Firebase 설정값을 붙여넣으세요 (아래 안내 참고)
+   ════════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyC5KYixReZJq3d1EGjLv5eRwLfUz_5e7kA",
+  authDomain: "dongyanga84.firebaseapp.com",
+  databaseURL: "https://dongyanga84-default-rtdb.firebaseio.com",
+  projectId: "dongyanga84",
+  storageBucket: "dongyanga84.firebasestorage.app",
+  messagingSenderId: "774721888087",
+  appId: "1:774721888087:web:351fc95a578edeeb37a812"
+};
+/* ════════════════════════════════════════════════════════════ */
+
+const PARENT_PW = "321201";
+
+// ── 미션 정의 ──
+const COMMON_MISSIONS = [
+  { id:"c1", label:"집에 오면 손/발 씻기 + 가방정리", target:20 },
+  { id:"c2", label:"하루 책 15분 이상 읽기", target:20 },
+  { id:"c3", label:"내일 학교 준비물 알아서 챙기기", target:20 },
+  { id:"c4", label:"분리수거 돕기", target:10 },
+  { id:"c5", label:"매일 숙제 목표 달성하기", target:20 },
+  { id:"c6", label:"식사 후 그릇 1회 세척 후 식세기 넣기", target:10 },
+  { id:"c7", label:"각자 방·책상 정리", target:10 },
+  { id:"c8", label:"동생·누나와 싸우지 않기", target:10 },
+  { id:"c9", label:"올리브유 먹기 (아침 공복)", target:15 },
+  { id:"c10", label:"영어책 10분 이상 읽기", target:15 },
+  { id:"c11", label:"쇼파에 빨래 있으면 개기", target:15 },
+  { id:"c12", label:"가족 들어오면 인사 잘하기", target:10 },
+];
+const SPECIAL_BONUS = { id:"bonus", label:"⭐ 특별 보너스 (부모님 인정)", target:10 };
+const PERSONAL = {
+  jimin: [
+    { id:"j1", label:"영어단어 외우기", target:15 },
+    { id:"j2", label:"줄넘기 10분 이상 연습하기", target:15 },
+  ],
+  jihoon: [
+    { id:"h1", label:"리틀팍스 하루 할당량 하기", target:15 },
+    { id:"h2", label:"귀가시간 잘 지키기 (엄마 지정)", target:15 },
+  ],
+};
+const REWARDS = {
+  jimin: ["용돈 5,000원권 1매","하루 잔소리 금지권 1매","용돈 1만원권 1매","샤브올데이 외식 상품권","파자마 파티권"],
+  jihoon: ["잔소리 면제권","숙제 면제권","다이소 1만원 구매권","게임 1시간 추가 이용권","야구 관련 책 구매권"],
+};
+const MEMBERS = [
+  { key:"jimin", name:"지민", color:"#E8743B", emoji:"🦊" },
+  { key:"jihoon", name:"지훈", color:"#3B82C4", emoji:"🐢" },
+];
+const LEVEL_THRESHOLDS = [2,4,7,10,13];
+const LEVEL_NAMES = ["1단계","2단계","3단계","4단계","5단계"];
+
+function missionsFor(k){ return [...COMMON_MISSIONS, ...PERSONAL[k], SPECIAL_BONUS]; }
+function levelFor(c){ let lvl=0; LEVEL_THRESHOLDS.forEach((t,i)=>{ if(c>=t) lvl=i+1; }); return lvl; }
+function curMonth(){ return new Date().toISOString().slice(0,7); }
+function emptyState(){
+  const counts={}, penalty={};
+  MEMBERS.forEach(m=>{ counts[m.key]={}; penalty[m.key]=0; missionsFor(m.key).forEach(mi=>counts[m.key][mi.id]=0); });
+  return { counts, penalty, month: curMonth() };
+}
+
+// ── 상태 ──
+let state = null;
+let active = "jimin";
+let parentMode = false;
+let pwPrompt = false;
+let pwError = false;
+let db = null;
+let configOk = false;
+let lastEdit = 0;
+
+// ── Firebase 초기화 ──
+function initFirebase(){
+  if (firebaseConfig.apiKey.indexOf("여기에") !== -1) { configOk = false; return; }
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    configOk = true;
+    const ref = db.ref("missionState");
+    ref.on("value", snap => {
+      // 방금 내가 편집한 직후엔 잠깐 무시 (깜빡임 방지)
+      if (Date.now() - lastEdit < 1200) return;
+      const val = snap.val();
+      if (val && val.month === curMonth()) { state = val; }
+      else { state = emptyState(); if(val===null) ref.set(state); }
+      render();
+    });
+  } catch(e){ console.error(e); configOk=false; render(); }
+}
+
+function save(next){
+  state = next;
+  lastEdit = Date.now();
+  render();
+  if (db) db.ref("missionState").set(next).catch(e=>console.error("저장실패",e));
+}
+
+function bump(memberKey, missionId, delta, max){
+  if(!state) return;
+  const cur = (state.counts[memberKey] && state.counts[memberKey][missionId]) || 0;
+  const nv = Math.max(0, Math.min(max, cur+delta));
+  const next = JSON.parse(JSON.stringify(state));
+  next.counts[memberKey][missionId] = nv;
+  save(next);
+}
+function setPenalty(memberKey, delta){
+  if(!state) return;
+  const next = JSON.parse(JSON.stringify(state));
+  next.penalty[memberKey] = Math.max(0, (next.penalty[memberKey]||0)+delta);
+  save(next);
+}
+let resetArmed = false;
+function resetMonth(){
+  if(!resetArmed){ resetArmed = true; render(); return; }
+  resetArmed = false;
+  parentMode = false;
+  pwPrompt = false;
+  save(emptyState());
+}
+function cancelReset(){ resetArmed = false; render(); }
+
+// ── 렌더 ──
+const el = document.getElementById("app");
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function render(){
+  if(!configOk){
+    el.innerHTML = `
+      <header><h1>우리 가족 미션 보드</h1></header>
+      <div class="config-warn">
+        ⚙️ <b>Firebase 설정이 아직 안 됐어요.</b><br>
+        이 파일 상단의 <code>firebaseConfig</code> 부분에 본인 프로젝트 설정값을 붙여넣은 뒤 다시 올려주세요.
+      </div>`;
+    return;
+  }
+  if(!state){ el.innerHTML = `<div class="loading">불러오는 중…</div>`; return; }
+
+  const member = MEMBERS.find(m=>m.key===active);
+  const missions = missionsFor(active);
+  const completedRaw = missions.filter(mi => (state.counts[active][mi.id]||0) >= mi.target).length;
+  const completed = Math.max(0, completedRaw - (state.penalty[active]||0));
+  const level = levelFor(completed);
+  const nextThresh = LEVEL_THRESHOLDS.find(t=>t>completed);
+
+  let html = `
+  <header>
+    <div class="month-tag">${esc(state.month)} 가족 미션</div>
+    <h1>우리 가족 미션 보드</h1>
+    <p class="sub">휴대폰에서 체크하면 온 가족이 함께 봐요</p>
+    <p class="sync">☁️ 실시간 공유 중</p>
+  </header>
+  <div class="summary-row">`;
+
+  MEMBERS.forEach(m=>{
+    const ms = missionsFor(m.key);
+    const cRaw = ms.filter(mi => (state.counts[m.key][mi.id]||0) >= mi.target).length;
+    const c = Math.max(0, cRaw - (state.penalty[m.key]||0));
+    const lv = levelFor(c);
+    const sel = active===m.key;
+    html += `
+      <button class="summary-card" style="border-color:${sel?m.color:'transparent'};${sel?`box-shadow:0 8px 24px ${m.color}33`:''}" onclick="setActive('${m.key}')">
+        <div class="avatar" style="background:${m.color}">${m.emoji}</div>
+        <div class="summary-name">${m.name}</div>
+        <div class="level-badge" style="color:${m.color}">${lv>0?LEVEL_NAMES[lv-1]:'도전중'}</div>
+        <div class="summary-count">${c}개 완료</div>
+      </button>`;
+  });
+  html += `</div>`;
+
+  // 상세
+  html += `
+  <div class="detail-card">
+    <div class="detail-head">
+      <div class="avatar-lg" style="background:${member.color}">${member.emoji}</div>
+      <div style="flex:1">
+        <div class="detail-name">${member.name}</div>
+        <div class="detail-level">
+          ${level>0?`<span style="color:${member.color};font-weight:800">${LEVEL_NAMES[level-1]} 통과!</span>`:`<span style="color:#8a8a8a">아직 1단계 전</span>`}
+          ${nextThresh?`<span class="next-hint"> · 다음 단계까지 ${nextThresh-completed}개</span>`:''}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="big-num" style="color:${member.color}">${completed}</div>
+        <div class="big-num-label">완료 미션</div>
+      </div>
+    </div>
+    <div class="level-track">`;
+
+  LEVEL_THRESHOLDS.forEach((t,i)=>{
+    const reached = completed>=t;
+    html += `
+      <div class="level-step">
+        <div class="level-dot" style="${reached?`background:${member.color};color:#fff;transform:scale(1.05)`:''}">${reached?'✓':t}</div>
+        <div class="level-step-label" style="${reached?`color:${member.color};font-weight:700`:''}">${LEVEL_NAMES[i]}</div>
+      </div>`;
+  });
+  html += `</div>`;
+
+  // 보상
+  html += `<div class="reward-head">🎁 단계별 보상</div>`;
+  REWARDS[active].forEach((rw,i)=>{
+    const thresh = LEVEL_THRESHOLDS[i];
+    const unlocked = completed>=thresh;
+    const isNext = !unlocked && nextThresh===thresh;
+    const bg = unlocked?`${member.color}12`:(isNext?'#FFFDF5':'#fafafa');
+    const bc = unlocked?member.color:(isNext?'#F2D98A':'#f0f0f0');
+    html += `
+      <div class="reward-row" style="background:${bg};border-color:${bc}">
+        <div class="reward-lvl" style="${unlocked?`background:${member.color};color:#fff`:''}">${unlocked?'✓':i+1}</div>
+        <div style="flex:1">
+          <div class="reward-stage">${LEVEL_NAMES[i]} 보상</div>
+          <div class="reward-name" style="${unlocked?'color:#2a2a2a':''}">${esc(rw)}</div>
+        </div>
+        ${unlocked?`<span class="reward-chip" style="background:${member.color}">획득!</span>`
+          :(isNext?`<span class="reward-lock">${thresh-completed}개 남음</span>`:`<span class="reward-lock-gray">🔒</span>`)}
+      </div>`;
+  });
+
+  if((state.penalty[active]||0)>0){
+    html += `<div class="penalty-note">⚠️ 감점 ${state.penalty[active]}개 적용 중 (허위 체크)</div>`;
+  }
+
+  // 미션 목록
+  missions.forEach(mi=>{
+    const cnt = state.counts[active][mi.id]||0;
+    const done = cnt>=mi.target;
+    const pct = Math.min(100,(cnt/mi.target)*100);
+    const isBonus = mi.id==="bonus";
+    const isPersonal = PERSONAL[active].some(p=>p.id===mi.id);
+    const rowBg = done?`${member.color}10`:(isBonus?'#FFF8E6':'#fff');
+    html += `
+      <div class="mission-row" style="background:${rowBg};border-color:${done?member.color:'#eee'}">
+        <div class="mission-top">
+          <span class="mission-label">${esc(mi.label)}${isPersonal?`<span class="tag">${member.name} 개별</span>`:''}</span>
+          ${done?`<span class="done-chip" style="background:${member.color}">완료</span>`:''}
+        </div>
+        <div class="mission-bottom">
+          <div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:${isBonus?'#F2B705':member.color}"></div></div>
+          <div class="count-wrap">
+            <button class="step-btn" onclick="bump('${active}','${mi.id}',-1,${mi.target})">−</button>
+            <span class="count-text">${cnt}<span class="count-target">/${mi.target}</span></span>
+            <button class="step-btn plus" style="background:${member.color}" onclick="bump('${active}','${mi.id}',1,${mi.target})">+</button>
+          </div>
+        </div>
+      </div>`;
+  });
+  html += `</div>`; // detail-card
+
+  // 부모 모드
+  html += `<button class="parent-toggle ${parentMode?'on':''}" onclick="toggleParent()">${parentMode?'부모 모드 닫기':'🔒 부모 모드'}</button>`;
+
+  if(pwPrompt){
+    html += `
+    <div class="pw-panel">
+      <div class="pw-title">부모 비밀번호 입력</div>
+      <input id="pwInput" class="pw-input ${pwError?'err':''}" type="password" inputmode="numeric" placeholder="• • • • • •" />
+      ${pwError?`<div class="pw-error">비밀번호가 맞지 않아요</div>`:''}
+      <div class="pw-btn-row">
+        <button class="pw-cancel" onclick="cancelPw()">취소</button>
+        <button class="pw-submit" onclick="submitPw()">확인</button>
+      </div>
+    </div>`;
+  }
+
+  if(parentMode){
+    html += `<div class="parent-panel"><div class="parent-title">감점 운영 (허위 체크 시)</div>`;
+    MEMBERS.forEach(m=>{
+      html += `
+        <div class="parent-row">
+          <span style="font-weight:700">${m.emoji} ${m.name}</span>
+          <div class="count-wrap">
+            <button class="step-btn" onclick="setPenalty('${m.key}',-1)">−</button>
+            <span class="count-text">감점 ${state.penalty[m.key]||0}</span>
+            <button class="step-btn plus" style="background:#d33" onclick="setPenalty('${m.key}',1)">+</button>
+          </div>
+        </div>`;
+    });
+    if(resetArmed){
+      html += `
+        <div style="margin-top:12px;background:#FFEAEA;border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:10px">정말 이번 달 기록을 모두 지울까요?<br><span style="font-weight:500">(모든 가족 화면에서 사라져요)</span></div>
+          <div style="display:flex;gap:10px">
+            <button class="pw-cancel" onclick="cancelReset()">취소</button>
+            <button class="pw-submit" style="background:#d33" onclick="resetMonth()">네, 초기화</button>
+          </div>
+        </div>`;
+    } else {
+      html += `<button class="reset-btn" onclick="resetMonth()">이번 달 전체 초기화</button>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `<p class="footer">2개→1단계 · 4개→2단계 · 7개→3단계 · 10개→4단계 · 13개→5단계</p>`;
+
+  el.innerHTML = html;
+
+  if(pwPrompt){
+    const inp = document.getElementById("pwInput");
+    if(inp){ inp.focus(); inp.addEventListener("keydown",e=>{ if(e.key==="Enter") submitPw(); }); }
+  }
+}
+
+// ── 핸들러 (전역) ──
+function setActive(k){ active=k; render(); }
+function toggleParent(){ if(parentMode){ parentMode=false; resetArmed=false; render(); return; } pwPrompt=true; pwError=false; render(); }
+function cancelPw(){ pwPrompt=false; pwError=false; render(); }
+function submitPw(){
+  const inp = document.getElementById("pwInput");
+  if(inp && inp.value===PARENT_PW){ parentMode=true; pwPrompt=false; pwError=false; }
+  else { pwError=true; }
+  render();
+}
+window.setActive=setActive; window.toggleParent=toggleParent; window.cancelPw=cancelPw;
+window.submitPw=submitPw; window.bump=bump; window.setPenalty=setPenalty; window.resetMonth=resetMonth; window.cancelReset=cancelReset;
+
+initFirebase();
+if(!configOk) render();
+</script>
+</body>
+</html>
