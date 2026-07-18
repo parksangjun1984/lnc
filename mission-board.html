@@ -186,8 +186,15 @@ let pwError = false;
 let editConfig = false;
 let db = null;
 let configOk = false;
+let permissionError = false;
 let lastEdit = 0;
-let lastCfgEdit = 0;
+
+// 미션/보상 설정(config)도 counts/penalty와 같은 "missionState" 경로 하나에
+// 함께 저장합니다. (별도 경로를 새로 만들면 기존 Firebase 보안 규칙에서
+// 막혀 있을 수 있어, 이미 열려 있는 경로 하나만 사용)
+function combinedPayload(){
+  return { month: state.month, counts: state.counts, penalty: state.penalty, config: missionConfig };
+}
 
 // ── Firebase 초기화 ──
 function initFirebase(){
@@ -201,36 +208,36 @@ function initFirebase(){
     stateRef.on("value", snap => {
       if (Date.now() - lastEdit < 1200) return;
       const val = snap.val();
-      // 날짜가 바뀌어도 자동으로 초기화하지 않음 — 부모 모드의
-      // "이번 달 전체 초기화" 버튼을 눌러야만 리셋됩니다.
-      if (val) { state = val; }
-      else { state = emptyState(); stateRef.set(state); }
+      if (val) {
+        state = { month: val.month, counts: val.counts||{}, penalty: val.penalty||{} };
+        missionConfig = val.config || defaultMissionConfig();
+      } else {
+        state = emptyState();
+        missionConfig = defaultMissionConfig();
+        stateRef.set(combinedPayload());
+      }
       render();
-    });
-
-    const cfgRef = db.ref("missionConfig");
-    cfgRef.on("value", snap => {
-      if (Date.now() - lastCfgEdit < 1200) return;
-      const val = snap.val();
-      if (val) { missionConfig = val; }
-      else { missionConfig = defaultMissionConfig(); cfgRef.set(missionConfig); }
+    }, err => {
+      console.error("Firebase 읽기 실패(권한 문제일 수 있음):", err);
+      configOk = false;
+      permissionError = true;
       render();
     });
   } catch(e){ console.error(e); configOk=false; render(); }
 }
 
-function save(next){
-  state = next;
+function save(nextState){
+  state = nextState;
   lastEdit = Date.now();
   render();
-  if (db) db.ref("missionState").set(next).catch(e=>console.error("저장실패",e));
+  if (db) db.ref("missionState").set(combinedPayload()).catch(e=>console.error("저장실패",e));
 }
 
-function saveConfig(next){
-  missionConfig = next;
-  lastCfgEdit = Date.now();
+function saveConfig(nextConfig){
+  missionConfig = nextConfig;
+  lastEdit = Date.now();
   render();
-  if (db) db.ref("missionConfig").set(next).catch(e=>console.error("설정 저장실패",e));
+  if (db) db.ref("missionState").set(combinedPayload()).catch(e=>console.error("설정 저장실패",e));
 }
 
 function bump(memberKey, missionId, delta, max){
@@ -356,7 +363,12 @@ function renderCfgPanel(){
 
 function render(){
   if(!configOk){
-    el.innerHTML = `
+    el.innerHTML = permissionError ? `
+      <header><h1>우리 가족 미션 보드</h1></header>
+      <div class="config-warn">
+        🔒 <b>Firebase에서 데이터를 불러올 권한이 없어요.</b><br>
+        Firebase 콘솔 → Realtime Database → 규칙(Rules)에서 읽기/쓰기 권한을 확인해주세요.
+      </div>` : `
       <header><h1>우리 가족 미션 보드</h1></header>
       <div class="config-warn">
         ⚙️ <b>Firebase 설정이 아직 안 됐어요.</b><br>
