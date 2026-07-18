@@ -163,9 +163,28 @@ function defaultMissionConfig(){
 
 function curMonth(){ return new Date().toISOString().slice(0,7); }
 
+// Firebase는 빈 배열/빈 객체를 저장하면 해당 키를 아예 지워버리는 특성이
+// 있어서, 미션을 모두 삭제하는 등의 상황에서 값이 undefined로 돌아올 수
+// 있습니다. 읽어올 때마다 항상 안전한 형태로 보정합니다.
+function normalizeConfig(raw){
+  const def = defaultMissionConfig();
+  if(!raw || typeof raw !== "object") return def;
+  return {
+    common: Array.isArray(raw.common) ? raw.common : def.common,
+    personal: {
+      jimin: Array.isArray(raw.personal && raw.personal.jimin) ? raw.personal.jimin : [],
+      jihoon: Array.isArray(raw.personal && raw.personal.jihoon) ? raw.personal.jihoon : [],
+    },
+    rewards: {
+      jimin: Array.isArray(raw.rewards && raw.rewards.jimin) && raw.rewards.jimin.length===5 ? raw.rewards.jimin : def.rewards.jimin,
+      jihoon: Array.isArray(raw.rewards && raw.rewards.jihoon) && raw.rewards.jihoon.length===5 ? raw.rewards.jihoon : def.rewards.jihoon,
+    },
+  };
+}
+
 function missionsFor(k){
   if(!missionConfig) return [];
-  return [...missionConfig.common, ...(missionConfig.personal[k]||[]), SPECIAL_BONUS];
+  return [...(missionConfig.common||[]), ...(missionConfig.personal[k]||[]), SPECIAL_BONUS];
 }
 
 function levelFor(c){ let lvl=0; LEVEL_THRESHOLDS.forEach((t,i)=>{ if(c>=t) lvl=i+1; }); return lvl; }
@@ -210,7 +229,7 @@ function initFirebase(){
       const val = snap.val();
       if (val) {
         state = { month: val.month, counts: val.counts||{}, penalty: val.penalty||{} };
-        missionConfig = val.config || defaultMissionConfig();
+        missionConfig = normalizeConfig(val.config);
       } else {
         state = emptyState();
         missionConfig = defaultMissionConfig();
@@ -362,6 +381,21 @@ function renderCfgPanel(){
 }
 
 function render(){
+  try {
+    renderInner();
+  } catch(e){
+    console.error("렌더링 오류:", e);
+    el.innerHTML = `
+      <header><h1>우리 가족 미션 보드</h1></header>
+      <div class="config-warn">
+        ⚠️ <b>화면을 그리는 중 오류가 발생했어요.</b><br>
+        새로고침해도 계속되면, 부모 모드 → "이번 달 전체 초기화"를 시도해보시거나 캡처해서 보내주세요.<br>
+        <span style="font-size:11px;opacity:.7">${esc(String(e && e.message || e))}</span>
+      </div>`;
+  }
+}
+
+function renderInner(){
   if(!configOk){
     el.innerHTML = permissionError ? `
       <header><h1>우리 가족 미션 보드</h1></header>
